@@ -7,6 +7,11 @@ on:
 jobs:
   create_project:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      repository-projects: write
+
     steps:
       - name: Check branch name
         run: |
@@ -60,9 +65,14 @@ jobs:
         run: |
           echo "Extracted Service Name: $SERVICE_NAME"
 
-      # Example: You can now use $SERVICE_NAME in a future step
-      # - name: Create repository using GitHub API
-      #   run: |
-      #     curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-      #     -d '{"name": "'"$SERVICE_NAME"'", "private": false}' \
-      #     https://api.github.com/orgs/YOUR_ORG_NAME/repos
+      - name: Create new repository from template
+        run: |
+          curl -X POST https://api.github.com/orgs/FittipaldiOrg/repos \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{
+            "name": "'"$SERVICE_NAME"'",
+            "description": "Repository created from template",
+            "private": false,
+            "template_repository": "FittipaldiOrg/template"
+          }'
