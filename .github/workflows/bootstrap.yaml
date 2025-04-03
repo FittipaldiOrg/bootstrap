@@ -81,7 +81,7 @@ jobs:
           cat response.json  # Prints API response for debugging
           
           if [[ "$response" -ne 201 ]]; then
-            echo "❌ Failed to create repository. HTTP Status: $response"
-            exit 1  # Fail the step
+            echo "Failed to create repository. HTTP Status: $response"
+            exit 1
           fi
 
