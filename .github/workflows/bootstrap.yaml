@@ -1,0 +1,42 @@
+name: Create Project
+
+on:
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  create_project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        run: |
+          if [[ "${{ github.event.pull_request.base.ref }}" != "main" ]]; then
+            echo "PR not merged into main. Exiting workflow."
+            exit 1
+          fi
+
+      - name: Check if PR is merged
+        id: check_merged
+        run: |
+          if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
+            echo "PR not merged. Exiting."
+            exit 1
+          fi
+
+      - name: Checkout bootstrap repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          path: bootstrap
+
+      - name: Find added YAML files
+        id: find_yaml
+        run: |
+          ## this does not work with multiple files???
+          cd bootstrap
+          git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true
+          echo "changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true)" >> $GITHUB_ENV
+
+     
+
+    
