@@ -1,0 +1,3 @@
+service:
+  name: test-repo-api
+  description: "tis is a repo test"
