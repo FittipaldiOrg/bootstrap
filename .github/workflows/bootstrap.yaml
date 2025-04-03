@@ -67,12 +67,21 @@ jobs:
 
       - name: Create new repository from template
         run: |
-          curl -X POST https://api.github.com/orgs/FittipaldiOrg/repos \
-          -H "Authorization: token ${{ secrets.ORG_PAT }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          -d '{
-            "name": "'"$SERVICE_NAME"'",
-            "description": "Repository created from template",
-            "private": false,
-            "template_repository": "FittipaldiOrg/template"
-          }'
+          response=$(curl -s -o response.json -w "%{http_code}" \
+            -X POST https://api.github.com/orgs/FittipaldiOrg/repos \
+            -H "Authorization: token ${{ secrets.ORG_PAT }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{
+              "name": "'"$SERVICE_NAME"'",
+              "description": "Repository created from template",
+              "private": false
+            }')
+          
+          echo "GitHub API response:"
+          cat response.json  # Prints API response for debugging
+          
+          if [[ "$response" -ne 201 ]]; then
+            echo "❌ Failed to create repository. HTTP Status: $response"
+            exit 1  # Fail the step
+          fi
+
