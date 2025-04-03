@@ -16,7 +16,6 @@ jobs:
           fi
 
       - name: Check if PR is merged
-        id: check_merged
         run: |
           if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
             echo "PR not merged. Exiting."
@@ -29,14 +28,41 @@ jobs:
           fetch-depth: 2
           path: bootstrap
 
+      - name: Install yq
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
       - name: Find added YAML files
         id: find_yaml
         run: |
-          ## this does not work with multiple files???
           cd bootstrap
-          git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true
-          echo "changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true)" >> $GITHUB_ENV
+          files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true)
 
-     
+          if [[ -n "$files" ]]; then
+            echo "changed_files<<EOF" >> $GITHUB_ENV
+            echo "$files" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
 
-    
+      - name: Extract service.name from YAML files
+        id: extract_service_name
+        run: |
+          for file in ${{ env.changed_files }}; do
+            echo "Processing: $file"
+            service_name=$(yq e '.service.name' "bootstrap/$file")
+            echo "Service Name: $service_name"
+            echo "SERVICE_NAME=$service_name" >> $GITHUB_ENV
+          done
+
+      - name: Print extracted service names
+        run: |
+          echo "Extracted Service Name: $SERVICE_NAME"
+
+      # Example: You can now use $SERVICE_NAME in a future step
+      # - name: Create repository using GitHub API
+      #   run: |
+      #     curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+      #     -d '{"name": "'"$SERVICE_NAME"'", "private": false}' \
+      #     https://api.github.com/orgs/YOUR_ORG_NAME/repos
