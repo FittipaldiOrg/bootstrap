@@ -1,0 +1,3 @@
+service:
+  name: service-test-1
+  description: "Service Description 1"
