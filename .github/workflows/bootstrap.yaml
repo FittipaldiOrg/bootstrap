@@ -72,7 +72,7 @@ jobs:
         run: |
           echo "Extracted Service Name: ${{ env.SERVICE_NAME }}"
 
-      - name: Create new repository from template
+      - name: Create new repository fro the Service Name
         id: create_repo
         run: |
           echo "Creating repository: ${{ env.SERVICE_NAME }}"
@@ -98,7 +98,8 @@ jobs:
       - name: Clone template repository
         run: |
           git clone --depth=1 https://github.com/FittipaldiOrg/template.git template-repo
-          rm -rf template-repo/.git  # Remove old Git history
+          cd template-repo
+          rm -rf .git  # Remove old git history
 
       - name: Push template code to new repository
         run: |
@@ -111,3 +112,4 @@ jobs:
           git commit -m "Initialize repository from template"
           git branch -M main
           git push -u origin main
+
