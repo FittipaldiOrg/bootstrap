@@ -108,7 +108,7 @@ jobs:
         run: |
           cd template-repo
           ls -la 
-          sh ./setup.sh --service_name "${{ env.SERVICE_NAME }}"
+          bash ./setup.sh --service_name "${{ env.SERVICE_NAME }}"
 
       - name: Push template code to new repository
         run: |
