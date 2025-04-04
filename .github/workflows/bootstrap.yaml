@@ -13,18 +13,15 @@ jobs:
       repository-projects: write
 
     steps:
-      - name: Check branch name
+      - name: Check if PR was merged into main
         run: |
           if [[ "${{ github.event.pull_request.base.ref }}" != "main" ]]; then
-            echo "PR not merged into main. Exiting workflow."
-            exit 1
+            echo "PR not merged into main. Exiting."
+            exit 0
           fi
-
-      - name: Check if PR is merged
-        run: |
-          if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
-            echo "PR not merged. Exiting."
-            exit 1
+          if [[ "${{ github.event.pull_request.merged }}" != "true" ]]; then
+            echo "PR was not merged. Exiting."
+            exit 0
           fi
 
       - name: Checkout bootstrap repository
@@ -43,45 +40,74 @@ jobs:
         id: find_yaml
         run: |
           cd bootstrap
-          files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true)
-
-          if [[ -n "$files" ]]; then
-            echo "changed_files<<EOF" >> $GITHUB_ENV
-            echo "$files" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+          FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.merge_commit_sha }} -- . :^.github | grep '\.yaml$' || true)
+          
+          if [[ -z "$FILES" ]]; then
+            echo "No YAML files changed. Exiting."
+            exit 1
           fi
+          
+          echo "Changed files:"
+          echo "$FILES"
+          echo "CHANGED_FILES=$FILES" >> $GITHUB_ENV
 
-      - name: Extract service.name from YAML files
+      - name: Extract service.name from YAML
         id: extract_service_name
         run: |
-          for file in ${{ env.changed_files }}; do
-            echo "Processing: $file"
-            service_name=$(yq e '.service.name' "bootstrap/$file")
-            echo "Service Name: $service_name"
-            echo "SERVICE_NAME=$service_name" >> $GITHUB_ENV
+          for FILE in ${{ env.CHANGED_FILES }}; do
+            echo "Processing: $FILE"
+            SERVICE_NAME=$(yq e '.service.name' "bootstrap/$FILE" 2>/dev/null || echo "")
+
+            if [[ -n "$SERVICE_NAME" ]]; then
+              echo "Extracted Service Name: $SERVICE_NAME"
+              echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
+              exit 0  # Stop at the first valid service name
+            fi
           done
 
-      - name: Print extracted service names
-        run: |
-          echo "Extracted Service Name: $SERVICE_NAME"
+          echo "No valid service name found in YAML files. Exiting."
+          exit 1
+
+      - name: Debug extracted service name
+        run:
+          echo "Extracted Service Name: ${{ env.SERVICE_NAME }}"
 
       - name: Create new repository from template
+        id: create_repo
         run: |
-          response=$(curl -s -o response.json -w "%{http_code}" \
+          echo "Creating repository: ${{ env.SERVICE_NAME }}"
+          
+          RESPONSE=$(curl -s -w "%{http_code}" -o response.json \
             -X POST https://api.github.com/orgs/FittipaldiOrg/repos \
             -H "Authorization: token ${{ secrets.ORG_PAT }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d '{
-              "name": "'"$SERVICE_NAME"'",
-              "description": "Repository created from template",
-              "private": false
-            }')
-          
-          echo "GitHub API response:"
-          cat response.json  # Prints API response for debugging
-          
-          if [[ "$response" -ne 201 ]]; then
-            echo "Failed to create repository. HTTP Status: $response"
+            -d "{
+              \"name\": \"${{ env.SERVICE_NAME }}\",
+              \"description\": \"Repository created from template\",
+              \"private\": false
+            }")
+
+          HTTP_STATUS=$(tail -n1 response.json)
+          cat response.json
+
+          if [[ "$HTTP_STATUS" != "201" ]]; then
+            echo "Failed to create repository. HTTP Status: $HTTP_STATUS"
             exit 1
           fi
 
+      - name: Clone template repository
+        run: |
+          git clone --depth=1 https://github.com/FittipaldiOrg/template.git template-repo
+          rm -rf template-repo/.git  # Remove old Git history
+
+      - name: Push template code to new repository
+        run: |
+          cd template-repo
+          git init
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+          git remote add origin https://x-access-token:${{ secrets.ORG_PAT }}@github.com/FittipaldiOrg/${{ env.SERVICE_NAME }}.git
+          git add .
+          git commit -m "Initialize repository from template"
+          git branch -M main
+          git push -u origin main
