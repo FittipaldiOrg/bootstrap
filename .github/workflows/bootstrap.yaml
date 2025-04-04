@@ -72,8 +72,7 @@ jobs:
         run: |
           echo "Extracted Service Name: ${{ env.SERVICE_NAME }}"
 
-      - name: Create new repository fro the Service Name
-        id: create_repo
+      - name: Create new repository for the new service
         run: |
           echo "Creating repository: ${{ env.SERVICE_NAME }}"
           
@@ -81,17 +80,20 @@ jobs:
             -X POST https://api.github.com/orgs/FittipaldiOrg/repos \
             -H "Authorization: token ${{ secrets.ORG_PAT }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d "{
-              \"name\": \"${{ env.SERVICE_NAME }}\",
-              \"description\": \"Repository created from template\",
-              \"private\": false
-            }")
-
-          HTTP_STATUS=$(tail -n1 response.json)
-          echo "response http status: $HTTP_STATUS"
-          cat response.json
-
-             if [[ "$HTTP_STATUS" != "200" && "$HTTP_STATUS" != "201" ]]; then
+            -d '{
+              "name": "'"$SERVICE_NAME"'",
+              "description": "Repository created from template",
+              "private": false
+            }')
+          
+          HTTP_STATUS="${RESPONSE: -3}"  # Extracts last 3 characters (status code)
+          
+          echo "GitHub API Response:"
+          cat response.json  # Print full API response for debugging
+          
+          echo "HTTP Status: $HTTP_STATUS"
+          
+          if [[ "$HTTP_STATUS" != "200" && "$HTTP_STATUS" != "201" ]]; then
             echo "Failed to create repository. HTTP Status: $HTTP_STATUS"
             exit 1
           fi
