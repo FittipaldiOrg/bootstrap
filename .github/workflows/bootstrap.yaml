@@ -88,9 +88,10 @@ jobs:
             }")
 
           HTTP_STATUS=$(tail -n1 response.json)
+          echo "response http status: $HTTP_STATUS"
           cat response.json
 
-          if [[ "$HTTP_STATUS" != "201" ]]; then
+             if [[ "$HTTP_STATUS" != "200" && "$HTTP_STATUS" != "201" ]]; then
             echo "Failed to create repository. HTTP Status: $HTTP_STATUS"
             exit 1
           fi
