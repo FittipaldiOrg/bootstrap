@@ -69,7 +69,7 @@ jobs:
           exit 1
 
       - name: Debug extracted service name
-        run:
+        run: |
           echo "Extracted Service Name: ${{ env.SERVICE_NAME }}"
 
       - name: Create new repository from template
